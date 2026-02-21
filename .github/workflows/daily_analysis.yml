@@ -41,21 +41,23 @@ jobs:
         # 这一步会像图16一样在控制台实时打印分析内容
         run: python main.py
 
-      - name: 提取网页首页
+      - name: 整理网页文件 (支持 MD 转 HTML 展示)
         if: always()
         run: |
-          # 检查 reports 目录下是否有生成的 html 文件
+          mkdir -p public
+          # 检查是否有 html，如果没有，就找 md 文件
           if [ "$(ls -A reports/*.html 2>/dev/null)" ]; then
-            # 找到最新的一份 HTML 报告
-            latest_report=$(ls -t reports/*.html | head -n 1)
-            # 复制一份并改名为 index.html，这是 GitHub Pages 展示的关键
-            cp "$latest_report" public/index.html
-            # 将所有历史报告也存入 public 目录
-            cp -r reports/* public/ 2>/dev/null || true
-            echo "✅ 可视化网页文件已就绪"
-          else
-            echo "⚠️ 未发现 HTML 报告，请检查 REPORT_TYPE 配置"
+            cp $(ls -t reports/*.html | head -n 1) public/index.html
+            echo "✅ 已找到 HTML 报告"
+          elif [ "$(ls -A reports/*.md 2>/dev/null)" ]; then
+            # 这是一个关键补丁：如果只有 md，我们也把它存为 index.md 供 Pages 展示
+            cp $(ls -t reports/*.md | head -n 1) public/index.md
+            # 创建一个简单的跳转页，让 Pages 引擎识别
+            echo "<html><body><script>window.location.href='index.md'</script></body></html>" > public/index.html
+            echo "✅ 已将最新的 MD 报告设为首页"
           fi
+          # 拷贝所有历史文件
+          cp -r reports/* public/ 2>/dev/null || true
 
       - name: 部署到 GitHub Pages
         if: always()
@@ -64,3 +66,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public
           publish_branch: gh-pages
+
